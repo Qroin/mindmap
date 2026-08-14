@@ -1,16 +1,24 @@
-// Floorplan Room Layout Engine (Room Group Center + Relative Offsets)
+// Floorplan Room Layout Engine (Tagging Removed)
 
-export function calculateDomain3TierPositions(locations, objects, features = []) {
+export function calculateDomain3TierPositions(locations, objects) {
   const locationPositions = {};
   const objectPositions = {};
-  const featurePositions = {};
 
-  // 4 Room Group Centers
+  const sw = typeof window !== 'undefined' ? window.innerWidth : 800;
+  const sh = typeof window !== 'undefined' ? window.innerHeight : 600;
+
+  // Constrain coordinates based on screen size so all boxes fit perfectly on screen!
+  const boxW = 170;
+  const boxH = 120;
+  
+  const spanX = Math.max(0, (sw / 2) - (boxW / 2) - 20);
+  const spanY = Math.max(0, (sh / 2) - (boxH / 2) - 80); // accommodate top nav
+
   const roomCenters = [
-    { x: -280, y: -200 }, // Top-Left: Indoor
-    { x: 280, y: -200 },  // Top-Right: City/Cafe
-    { x: -280, y: 200 },  // Bottom-Left: Nature
-    { x: 280, y: 200 }    // Bottom-Right: Office
+    { x: -spanX * 0.7, y: -spanY * 0.7 }, // Top-Left
+    { x: spanX * 0.7, y: -spanY * 0.7 },  // Top-Right
+    { x: -spanX * 0.7, y: spanY * 0.7 },  // Bottom-Left
+    { x: spanX * 0.7, y: spanY * 0.7 }    // Bottom-Right
   ];
 
   locations.forEach((loc, index) => {
@@ -23,28 +31,17 @@ export function calculateDomain3TierPositions(locations, objects, features = [])
       const col = oIdx % 2;
       const row = Math.floor(oIdx / 2);
       
-      const relX = col === 0 ? -80 : 80;
-      const relY = row === 0 ? -20 : 50;
+      const relX = col === 0 ? -42 : 42;
+      const relY = row === 0 ? -24 : 24;
 
       const ox = center.x + relX;
       const oy = center.y + relY;
 
       objectPositions[obj.id] = { x: ox, y: oy, relX, relY };
-
-      const objFeats = features.filter(f => f.objectId === obj.id);
-      objFeats.forEach((feat, fIdx) => {
-        const featRelX = relX + (fIdx % 2 === 0 ? -40 : 40);
-        const featRelY = relY + 30 + Math.floor(fIdx / 2) * 24;
-
-        const fx = center.x + featRelX;
-        const fy = center.y + featRelY;
-
-        featurePositions[feat.id] = { x: fx, y: fy, relX: featRelX, relY: featRelY };
-      });
     });
   });
 
-  return { locationPositions, objectPositions, featurePositions };
+  return { locationPositions, objectPositions, featurePositions: {} };
 }
 
 export function getBezierPath(x1, y1, x2, y2, curvature = 0.3) {

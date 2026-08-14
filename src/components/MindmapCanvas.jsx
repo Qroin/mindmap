@@ -12,7 +12,8 @@ export default function MindmapCanvas({
   setZoom,
   pan,
   setPan,
-  searchTerm
+  searchTerm,
+  onLocationClick
 }) {
   const containerRef = useRef(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -134,7 +135,7 @@ export default function MindmapCanvas({
           transform: `translate(${pan.x + window.innerWidth / 2}px, ${pan.y + window.innerHeight / 2}px) scale(${zoom})`
         }}
       >
-        {/* SVG Concentric Bezier Connections (No Central Root Line) */}
+        {/* SVG Concentric Bezier Connections */}
         <svg className="svg-layer">
           <defs>
             <linearGradient id="domainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -189,19 +190,26 @@ export default function MindmapCanvas({
           })}
         </svg>
 
-        {/* 1. INNER CORE TIER: LOCATION NODES (위치 기반 대분류) */}
+        {/* 1. INNER CORE TIER: LOCATION NODES (위치 기반 1차 대분류 - 클릭 시 모달 오픈) */}
         {locations.map((loc) => {
           const locPos = positions.locationPositions[loc.id] || { x: 0, y: 0 };
           const objCount = objects.filter(o => o.locationId === loc.id).length;
 
           return (
-            <LocationNode
+            <div 
               key={loc.id}
-              location={loc}
-              pos={locPos}
-              objectCount={objCount}
-              onMouseDown={handleNodeMouseDown}
-            />
+              onClick={(e) => {
+                e.stopPropagation();
+                onLocationClick && onLocationClick(loc);
+              }}
+            >
+              <LocationNode
+                location={loc}
+                pos={locPos}
+                objectCount={objCount}
+                onMouseDown={handleNodeMouseDown}
+              />
+            </div>
           );
         })}
 

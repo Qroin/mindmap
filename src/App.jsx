@@ -1,34 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import HeaderNav from './components/HeaderNav.jsx';
-import LayoutToolbar from './components/LayoutToolbar.jsx';
 import MindmapCanvas from './components/MindmapCanvas.jsx';
 import MobileRelationView from './components/MobileRelationView.jsx';
-import PhotoDetailModal from './components/PhotoDetailModal.jsx';
-import CategoryModal from './components/CategoryModal.jsx';
+import { LocationListModal, QuickTagModal } from './components/LocationListModal.jsx';
 
 import { LOCATION_CATEGORIES, OBJECT_NODES, FEATURE_ATTRIBUTES, INITIAL_PHOTOS } from './utils/sampleData.js';
 import { calculateDomain3TierPositions } from './utils/layoutEngine.js';
 
 export default function App() {
-  const [viewMode, setViewMode] = useState('mindmap'); // Default to domain mindmap view
+  const [viewMode, setViewMode] = useState('mindmap'); // 'mobile-relation' | 'mindmap'
 
-  // 3-Tier Domain State
   const [locations, setLocations] = useState(LOCATION_CATEGORIES);
   const [objects, setObjects] = useState(OBJECT_NODES);
   const [features, setFeatures] = useState(FEATURE_ATTRIBUTES);
   const [photos, setPhotos] = useState(INITIAL_PHOTOS);
 
-  const [layoutMode, setLayoutMode] = useState('radial');
+  const [currentIndex, setCurrentIndex] = useState(0);
+
   const [positions, setPositions] = useState({ locationPositions: {}, objectPositions: {}, featurePositions: {} });
   const [zoom, setZoom] = useState(0.85);
   const [pan, setPan] = useState({ x: 0, y: 0 });
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-
-  const fileInputRef = useRef(null);
+  
+  // Modals State
+  const [isLocationListOpen, setIsLocationListOpen] = useState(false);
+  const [tagModalLocation, setTagModalLocation] = useState(null);
 
   const handleAutoArrange = () => {
     const newPos = calculateDomain3TierPositions(locations, objects, features);
@@ -42,12 +40,17 @@ export default function App() {
   const triggerConfetti = () => {
     try {
       confetti({
-        particleCount: 40,
-        spread: 50,
+        particleCount: 30,
+        spread: 45,
         origin: { y: 0.8 },
-        colors: ['#6366f1', '#a855f7', '#3b82f6']
+        colors: ['#6366f1', '#a855f7', '#3b82f6', '#f59e0b']
       });
     } catch (e) {}
+  };
+
+  const handleReassignCategory = (photoId, targetCategoryId) => {
+    setPhotos(prev => prev.map(p => p.id === photoId ? { ...p, categoryId: targetCategoryId } : p));
+    triggerConfetti();
   };
 
   const handleResetData = () => {
@@ -55,100 +58,96 @@ export default function App() {
     setObjects(OBJECT_NODES);
     setFeatures(FEATURE_ATTRIBUTES);
     setPhotos(INITIAL_PHOTOS);
+    setCurrentIndex(0);
     setZoom(0.85);
     setPan({ x: 0, y: 0 });
     const newPos = calculateDomain3TierPositions(LOCATION_CATEGORIES, OBJECT_NODES, FEATURE_ATTRIBUTES);
     setPositions(newPos);
   };
 
-  const handleAddCategory = (newCategory) => {
-    setLocations(prev => [...prev, newCategory]);
+  const handleAddLocation = (newLoc) => {
+    setLocations(prev => [...prev, newLoc]);
+    triggerConfetti();
   };
 
-  const handleExportJSON = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ locations, objects, features, photos }, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "domain-hierarchy-export.json");
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+  const handleAddObjectToLocation = (locationId, newObjName) => {
+    const newObj = {
+      id: `obj-custom-${Date.now()}`,
+      locationId: locationId,
+      name: newObjName,
+      icon: '📦'
+    };
+    setObjects(prev => [...prev, newObj]);
+    triggerConfetti();
+  };
+
+  const handleAddTagToLocationObject = (locationId, objectId, newTagText) => {
+    const newFeature = {
+      id: `feat-custom-${Date.now()}`,
+      objectId: objectId,
+      name: newTagText.startsWith('#') ? newTagText : `#${newTagText}`,
+      tagType: '사용자 태그'
+    };
+
+    setFeatures(prev => [...prev, newFeature]);
+    triggerConfetti();
   };
 
   return (
     <div className="app-container">
-      <input
-        type="file"
-        ref={fileInputRef}
-        style={{ display: 'none' }}
-        multiple
-        accept="image/*"
-      />
-
+      {/* Header */}
       <HeaderNav
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
         viewMode={viewMode}
         setViewMode={setViewMode}
         onResetData={handleResetData}
-        onAddCategory={() => setIsCategoryModalOpen(true)}
-        onUploadClick={() => fileInputRef.current?.click()}
-        onExportJSON={handleExportJSON}
-        onExportPNG={handleExportJSON}
-        photoCount={photos.length}
-        categoryCount={locations.length}
+        onOpenLocationList={() => setIsLocationListOpen(true)}
       />
 
       {viewMode === 'mobile-relation' ? (
+        /* FAST MATCHER & QUICK TAGGING UI */
         <MobileRelationView
           categories={locations}
           photos={photos}
-          unassignedPhotos={[]}
-          onReassignCategory={() => {}}
-          onUpdatePhoto={() => {}}
-          onAddCategory={() => setIsCategoryModalOpen(true)}
-          onPhotoClick={(photo) => setSelectedPhoto(photo)}
+          onReassignCategory={handleReassignCategory}
+          onOpenTagModal={(loc) => setTagModalLocation(loc)}
+          currentIndex={currentIndex}
+          setCurrentIndex={setCurrentIndex}
         />
       ) : (
-        <>
-          <MindmapCanvas
-            locations={locations}
-            objects={objects}
-            features={features}
-            positions={positions}
-            setPositions={setPositions}
-            zoom={zoom}
-            setZoom={setZoom}
-            pan={pan}
-            setPan={setPan}
-            searchTerm={searchTerm}
-          />
-
-          <LayoutToolbar
-            layoutMode={layoutMode}
-            setLayoutMode={setLayoutMode}
-            onAutoArrange={handleAutoArrange}
-            zoom={zoom}
-            setZoom={setZoom}
-            onResetZoom={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-            isTrayOpen={false}
-            setIsTrayOpen={() => {}}
-            unassignedCount={0}
-          />
-        </>
+        /* 100% FULLSCREEN CLEAN MINDMAP CANVAS (Click 1st-level Location -> Open Custom Tagging Modal) */
+        <MindmapCanvas
+          locations={locations}
+          objects={objects}
+          features={features}
+          positions={positions}
+          setPositions={setPositions}
+          zoom={zoom}
+          setZoom={setZoom}
+          pan={pan}
+          setPan={setPan}
+          searchTerm={searchTerm}
+          onLocationClick={(loc) => setTagModalLocation(loc)}
+        />
       )}
 
-      <PhotoDetailModal
-        photo={selectedPhoto}
-        categories={locations}
-        onClose={() => setSelectedPhoto(null)}
-        onUpdatePhoto={() => {}}
+      {/* Location List Settings Modal */}
+      <LocationListModal
+        isOpen={isLocationListOpen}
+        onClose={() => setIsLocationListOpen(false)}
+        locations={locations}
+        onSelectLocation={(loc) => setTagModalLocation(loc)}
+        onAddLocation={handleAddLocation}
       />
 
-      <CategoryModal
-        isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-        onAddCategory={handleAddCategory}
+      {/* Quick Tagging Modal (1차 위치 클릭 시 팝업: 사물 세로 List & 하단 +사물추가 / 사물 누르면 태깅 List & 하단 +태깅추가) */}
+      <QuickTagModal
+        location={tagModalLocation}
+        isOpen={!!tagModalLocation}
+        onClose={() => setTagModalLocation(null)}
+        objects={objects}
+        features={features}
+        onAddObject={handleAddObjectToLocation}
+        onAddTag={handleAddTagToLocationObject}
       />
     </div>
   );

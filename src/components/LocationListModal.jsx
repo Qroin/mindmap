@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Settings, Plus, Tag, GripVertical, ChevronRight, Check, ArrowLeft } from 'lucide-react';
 
 export function LocationListModal({
@@ -92,12 +92,10 @@ export function LocationListModal({
   );
 }
 
-/* LOCATION MODAL: SHOW ONLY CLEAN OBJECT LIST (NO TAG CLUTTER)
-   - Object Sub-View opens dedicated tag editor when an object is clicked
-   - Bottom '+ 사물 추가' form
-*/
+/* REUSABLE DEAD-CENTER POPUP MODAL (위치-사물-태깅 동일 모달 재활용) */
 export function QuickTagModal({
   location,
+  initialObject = null,
   isOpen,
   onClose,
   objects,
@@ -109,8 +107,12 @@ export function QuickTagModal({
 
   const locObjs = objects.filter(o => o.locationId === location.id);
 
-  // Active object view: null means showing Object List; non-null means editing tags for that object
-  const [activeObject, setActiveObject] = useState(null);
+  // Active object view: pre-set to initialObject if provided
+  const [activeObject, setActiveObject] = useState(initialObject);
+
+  useEffect(() => {
+    setActiveObject(initialObject);
+  }, [initialObject, location]);
 
   // Forms state
   const [newObjName, setNewObjName] = useState('');
@@ -159,7 +161,7 @@ export function QuickTagModal({
               <span style={{ fontSize: '24px' }}>{location.icon}</span>
               <div>
                 <h2 style={{ fontSize: '16px', fontWeight: '800' }}>{location.name}</h2>
-                <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>소속 사물 List (태그 목록 숨김으로 쾌적화)</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>소속 사물 List</p>
               </div>
             </div>
           )}
@@ -231,7 +233,7 @@ export function QuickTagModal({
               </button>
             </div>
           ) : (
-            /* CLEAN OBJECT-ONLY VERTICAL LIST (NO TAG CLUTTER) */
+            /* CLEAN OBJECT-ONLY VERTICAL LIST */
             <>
               <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block' }}>
                 소속 사물 List ({locObjs.length}개)

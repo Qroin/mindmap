@@ -13,7 +13,8 @@ export default function MindmapCanvas({
   pan,
   setPan,
   searchTerm,
-  onLocationClick
+  onLocationClick,
+  onObjectClick
 }) {
   const containerRef = useRef(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -29,8 +30,14 @@ export default function MindmapCanvas({
     return feat.name.toLowerCase().includes(searchLower);
   };
 
-  // Pan Handlers
-  const handleMouseDown = (e) => {
+  const getClientCoords = (e) => {
+    if (e.touches && e.touches.length > 0) {
+      return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+    }
+    return { clientX: e.clientX, clientY: e.clientY };
+  };
+
+  const handleStartPan = (e) => {
     if (
       e.target.closest('.location-tier-node') ||
       e.target.closest('.object-tier-node') ||
@@ -38,19 +45,22 @@ export default function MindmapCanvas({
     ) {
       return;
     }
+    const { clientX, clientY } = getClientCoords(e);
     setIsPanning(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    setDragStart({ x: clientX - pan.x, y: clientY - pan.y });
   };
 
-  const handleMouseMove = (e) => {
+  const handleMove = (e) => {
+    const { clientX, clientY } = getClientCoords(e);
+
     if (isPanning) {
       setPan({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
+        x: clientX - dragStart.x,
+        y: clientY - dragStart.y
       });
     } else if (draggingNode) {
-      const dx = (e.clientX - draggingNode.startX) / zoom;
-      const dy = (e.clientY - draggingNode.startY) / zoom;
+      const dx = (clientX - draggingNode.startX) / zoom;
+      const dy = (clientY - draggingNode.startY) / zoom;
 
       const newX = draggingNode.initialNodeX + dx;
       const newY = draggingNode.initialNodeY + dy;
@@ -83,7 +93,7 @@ export default function MindmapCanvas({
     }
   };
 
-  const handleMouseUp = () => {
+  const handleEndDrag = () => {
     setIsPanning(false);
     setDraggingNode(null);
   };
@@ -95,7 +105,8 @@ export default function MindmapCanvas({
   };
 
   const handleNodeMouseDown = (e, nodeId, type) => {
-    e.stopPropagation();
+    const { clientX, clientY } = getClientCoords(e);
+
     let initialX = 0;
     let initialY = 0;
 
@@ -113,8 +124,8 @@ export default function MindmapCanvas({
     setDraggingNode({
       id: nodeId,
       type,
-      startX: e.clientX,
-      startY: e.clientY,
+      startX: clientX,
+      startY: clientY,
       initialNodeX: initialX,
       initialNodeY: initialY
     });
@@ -124,9 +135,12 @@ export default function MindmapCanvas({
     <div
       className="canvas-viewport"
       ref={containerRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      onMouseDown={handleStartPan}
+      onMouseMove={handleMove}
+      onMouseUp={handleEndDrag}
+      onTouchStart={handleStartPan}
+      onTouchMove={handleMove}
+      onTouchEnd={handleEndDrag}
       onWheel={handleWheel}
     >
       <div
@@ -190,30 +204,24 @@ export default function MindmapCanvas({
           })}
         </svg>
 
-        {/* 1. INNER CORE TIER: LOCATION NODES (위치 기반 1차 대분류 - 클릭 시 모달 오픈) */}
+        {/* 1. INNER CORE TIER: LOCATION NODES */}
         {locations.map((loc) => {
           const locPos = positions.locationPositions[loc.id] || { x: 0, y: 0 };
           const objCount = objects.filter(o => o.locationId === loc.id).length;
 
           return (
-            <div 
+            <LocationNode
               key={loc.id}
-              onClick={(e) => {
-                e.stopPropagation();
-                onLocationClick && onLocationClick(loc);
-              }}
-            >
-              <LocationNode
-                location={loc}
-                pos={locPos}
-                objectCount={objCount}
-                onMouseDown={handleNodeMouseDown}
-              />
-            </div>
+              location={loc}
+              pos={locPos}
+              objectCount={objCount}
+              onMouseDown={handleNodeMouseDown}
+              onOpenModal={(locationObj) => onLocationClick && onLocationClick(locationObj)}
+            />
           );
         })}
 
-        {/* 2. MIDDLE TIER: OBJECT NODES (사물 기반 중분류) */}
+        {/* 2. MIDDLE TIER: OBJECT NODES */}
         {objects.map((objItem) => {
           const loc = locations.find(l => l.id === objItem.locationId);
           const objPos = positions.objectPositions[objItem.id] || { x: 0, y: 0 };
@@ -227,11 +235,12 @@ export default function MindmapCanvas({
               location={loc}
               featureCount={featCount}
               onMouseDown={handleNodeMouseDown}
+              onOpenObjectModal={(locObj, obj) => onObjectClick && onObjectClick(locObj, obj)}
             />
           );
         })}
 
-        {/* 3. OUTER TIER: FEATURE PILL NODES (특징/감성 기반 소분류) */}
+        {/* 3. OUTER TIER: FEATURE PILL NODES */}
         {features.map((feat) => {
           const objItem = objects.find(o => o.id === feat.objectId);
           const loc = locations.find(l => l.id === objItem?.locationId);

@@ -27,6 +27,9 @@ export default function App() {
   // Modals State
   const [isLocationListOpen, setIsLocationListOpen] = useState(false);
   const [tagModalLocation, setTagModalLocation] = useState(null);
+  const [initialTagModalObject, setInitialTagModalObject] = useState(null);
+
+  const fileInputRef = useRef(null);
 
   const handleAutoArrange = () => {
     const newPos = calculateDomain3TierPositions(locations, objects, features);
@@ -93,9 +96,14 @@ export default function App() {
     triggerConfetti();
   };
 
+  const openTagModal = (locObj, initialObj = null) => {
+    setTagModalLocation(locObj);
+    setInitialTagModalObject(initialObj);
+  };
+
   return (
     <div className="app-container">
-      {/* Header */}
+      {/* Streamlined Header */}
       <HeaderNav
         viewMode={viewMode}
         setViewMode={setViewMode}
@@ -104,17 +112,16 @@ export default function App() {
       />
 
       {viewMode === 'mobile-relation' ? (
-        /* FAST MATCHER & QUICK TAGGING UI */
         <MobileRelationView
           categories={locations}
           photos={photos}
           onReassignCategory={handleReassignCategory}
-          onOpenTagModal={(loc) => setTagModalLocation(loc)}
+          onOpenTagModal={(loc) => openTagModal(loc)}
           currentIndex={currentIndex}
           setCurrentIndex={setCurrentIndex}
         />
       ) : (
-        /* 100% FULLSCREEN CLEAN MINDMAP CANVAS (Click 1st-level Location -> Open Custom Tagging Modal) */
+        /* 100% FULLSCREEN CLEAN MINDMAP CANVAS */
         <MindmapCanvas
           locations={locations}
           objects={objects}
@@ -126,7 +133,8 @@ export default function App() {
           pan={pan}
           setPan={setPan}
           searchTerm={searchTerm}
-          onLocationClick={(loc) => setTagModalLocation(loc)}
+          onLocationClick={(loc) => openTagModal(loc, null)}
+          onObjectClick={(loc, obj) => openTagModal(loc, obj)}
         />
       )}
 
@@ -135,15 +143,19 @@ export default function App() {
         isOpen={isLocationListOpen}
         onClose={() => setIsLocationListOpen(false)}
         locations={locations}
-        onSelectLocation={(loc) => setTagModalLocation(loc)}
+        onSelectLocation={(loc) => openTagModal(loc, null)}
         onAddLocation={handleAddLocation}
       />
 
-      {/* Quick Tagging Modal (1차 위치 클릭 시 팝업: 사물 세로 List & 하단 +사물추가 / 사물 누르면 태깅 List & 하단 +태깅추가) */}
+      {/* Reusable Dead-Center Popup Tagging Modal */}
       <QuickTagModal
         location={tagModalLocation}
+        initialObject={initialTagModalObject}
         isOpen={!!tagModalLocation}
-        onClose={() => setTagModalLocation(null)}
+        onClose={() => {
+          setTagModalLocation(null);
+          setInitialTagModalObject(null);
+        }}
         objects={objects}
         features={features}
         onAddObject={handleAddObjectToLocation}

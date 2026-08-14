@@ -2,7 +2,13 @@ import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import HeaderNav from './components/HeaderNav.jsx';
 import MindmapCanvas from './components/MindmapCanvas.jsx';
-import { LocationListModal, QuickTagModal, CreateLocationAtPositionModal } from './components/LocationListModal.jsx';
+import {
+  LocationListModal,
+  QuickTagModal,
+  CreateLocationAtPositionModal,
+  CreateObjectAtPositionModal,
+  ObjectDetailCenterModal
+} from './components/LocationListModal.jsx';
 
 import { LOCATION_CATEGORIES, OBJECT_NODES, INITIAL_PHOTOS, getRandomColor } from './utils/sampleData.js';
 import { calculateDomain3TierPositions } from './utils/layoutEngine.js';
@@ -22,9 +28,11 @@ export default function App() {
   // Modals State
   const [isLocationListOpen, setIsLocationListOpen] = useState(false);
   const [tagModalLocation, setTagModalLocation] = useState(null);
+  const [selectedObjectInfo, setSelectedObjectInfo] = useState(null);
 
-  // New Location Creation at Touch Position State
+  // New Creation States (1-Sec Press Rules)
   const [createLocPos, setCreateLocPos] = useState(null);
+  const [createObjPos, setCreateObjPos] = useState(null);
 
   const handleAutoArrange = () => {
     const newPos = calculateDomain3TierPositions(locations, objects);
@@ -88,6 +96,23 @@ export default function App() {
     triggerConfetti();
   };
 
+  const handleAddObjectAtPosition = (locationId, newObjName, pos) => {
+    const newObj = {
+      id: `obj-custom-${Date.now()}`,
+      locationId: locationId,
+      name: newObjName
+    };
+    setObjects(prev => [...prev, newObj]);
+    setPositions(prev => ({
+      ...prev,
+      objectPositions: {
+        ...prev.objectPositions,
+        [newObj.id]: { x: pos.x, y: pos.y, relX: 0, relY: 0 }
+      }
+    }));
+    triggerConfetti();
+  };
+
   const openTagModal = (locObj) => {
     setTagModalLocation(locObj);
   };
@@ -110,13 +135,14 @@ export default function App() {
         setPan={setPan}
         searchTerm={searchTerm}
         onLocationClick={(loc) => openTagModal(loc)}
-        onObjectClick={(loc, obj) => {}}
+        onObjectClick={(loc, obj) => setSelectedObjectInfo({ location: loc, object: obj })}
         activeLocationMode={activeLocationMode}
         setActiveLocationMode={setActiveLocationMode}
         onRequestCreateLocation={(pos) => setCreateLocPos(pos)}
+        onRequestCreateObject={({ locationId, pos }) => setCreateObjPos({ locationId, pos })}
       />
 
-      {/* New Location Creation */}
+      {/* 1. Rule 1: Location Creation Modal (위치 밖 빈화면 1초 꾹 누름) */}
       <CreateLocationAtPositionModal
         isOpen={!!createLocPos}
         position={createLocPos}
@@ -124,12 +150,28 @@ export default function App() {
         onCreateLocation={handleAddLocationAtPosition}
       />
 
+      {/* 2. Rule 2: Object Creation Modal (위치모드 진입 후 방 박스 내 빈 영역 1초 꾹 누름) */}
+      <CreateObjectAtPositionModal
+        isOpen={!!createObjPos}
+        location={locations.find(l => l.id === createObjPos?.locationId)}
+        position={createObjPos?.pos}
+        onClose={() => setCreateObjPos(null)}
+        onCreateObject={handleAddObjectAtPosition}
+      />
+
       {/* Location List Settings Modal */}
       <LocationListModal
         isOpen={isLocationListOpen}
         onClose={() => setIsLocationListOpen(false)}
         locations={locations}
-        onSelectLocation={(loc) => openTagModal(loc)}
+        onSelectLocation={(loc) => {
+          setActiveLocationMode(loc.id);
+          const locPos = positions.locationPositions[loc.id];
+          if (locPos) {
+            setPan({ x: -locPos.x, y: -locPos.y });
+          }
+          setIsLocationListOpen(false);
+        }}
         onAddLocation={(newLoc) => handleAddLocationAtPosition({ ...newLoc, x: 0, y: 0 })}
       />
 
@@ -140,6 +182,15 @@ export default function App() {
         onClose={() => setTagModalLocation(null)}
         objects={objects}
         onAddObject={handleAddObjectToLocation}
+      />
+
+      {/* Dead-Centered Object Info Modal */}
+      <ObjectDetailCenterModal
+        isOpen={!!selectedObjectInfo}
+        location={selectedObjectInfo?.location}
+        objectItem={selectedObjectInfo?.object}
+        photos={photos}
+        onClose={() => setSelectedObjectInfo(null)}
       />
     </div>
   );

@@ -4,11 +4,21 @@ export function calculateDomain3TierPositions(locations, objects) {
   const locationPositions = {};
   const objectPositions = {};
 
+  const sw = typeof window !== 'undefined' ? window.innerWidth : 800;
+  const sh = typeof window !== 'undefined' ? window.innerHeight : 600;
+
+  // Constrain coordinates based on screen size so all boxes fit perfectly on screen!
+  const boxW = 170;
+  const boxH = 120;
+  
+  const spanX = Math.max(0, (sw / 2) - (boxW / 2) - 20);
+  const spanY = Math.max(0, (sh / 2) - (boxH / 2) - 80); // accommodate top nav
+
   const roomCenters = [
-    { x: -140, y: -100 }, // Top-Left: Indoor
-    { x: 140, y: -100 },  // Top-Right: City/Cafe
-    { x: -140, y: 100 },  // Bottom-Left: Nature
-    { x: 140, y: 100 }    // Bottom-Right: Office
+    { x: -spanX * 0.7, y: -spanY * 0.7 }, // Top-Left
+    { x: spanX * 0.7, y: -spanY * 0.7 },  // Top-Right
+    { x: -spanX * 0.7, y: spanY * 0.7 },  // Bottom-Left
+    { x: spanX * 0.7, y: spanY * 0.7 }    // Bottom-Right
   ];
 
   locations.forEach((loc, index) => {

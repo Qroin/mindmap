@@ -194,6 +194,19 @@ export default function MindmapCanvas({
           const objCount = objects.filter(o => o.locationId === loc.id).length;
           const isNeighbor = activeLocationMode && activeLocationMode !== loc.id;
 
+          // Calculate dynamic box dimensions based on distance to neighbor nodes
+          let minDistance = Infinity;
+          locations.forEach((other) => {
+            if (other.id === loc.id) return;
+            const otherPos = positions.locationPositions[other.id];
+            if (!otherPos) return;
+            const d = Math.hypot(locPos.x - otherPos.x, locPos.y - otherPos.y);
+            if (d < minDistance) minDistance = d;
+          });
+
+          const boxWidth = minDistance === Infinity ? 170 : Math.round(Math.max(110, Math.min(220, minDistance * 0.52)));
+          const boxHeight = minDistance === Infinity ? 120 : Math.round(Math.max(75, Math.min(145, minDistance * 0.38)));
+
           return (
             <div 
               key={loc.id}
@@ -203,6 +216,8 @@ export default function MindmapCanvas({
                 location={loc}
                 pos={locPos}
                 objectCount={objCount}
+                boxWidth={boxWidth}
+                boxHeight={boxHeight}
                 onMouseDown={handleNodeMouseDown}
                 onOpenModal={(locationObj) => onLocationClick && onLocationClick(locationObj)}
                 onEnterLocationMode={(locationObj) => handleEnterLocationMode(locationObj)}
@@ -211,9 +226,28 @@ export default function MindmapCanvas({
           );
         })}
 
-        {/* OVERVIEW MODE: MINI 3-LETTER SQUARE OBJECT PREVIEW CHIPS */}
+        {/* OVERVIEW MODE: MINI 3-LETTER SQUARE OBJECT PREVIEW CHIPS (DISABLED WHEN BOX IS SMALL) */}
         {!activeLocationMode && objects.map((objItem) => {
           const loc = locations.find(l => l.id === objItem.locationId);
+          if (!loc) return null;
+
+          const locPos = positions.locationPositions[loc.id] || { x: 0, y: 0 };
+          
+          // Calculate parent room box width to check preview threshold
+          let minDistance = Infinity;
+          locations.forEach((other) => {
+            if (other.id === loc.id) return;
+            const otherPos = positions.locationPositions[other.id];
+            if (!otherPos) return;
+            const d = Math.hypot(locPos.x - otherPos.x, locPos.y - otherPos.y);
+            if (d < minDistance) minDistance = d;
+          });
+
+          const boxWidth = minDistance === Infinity ? 170 : Math.round(Math.max(110, Math.min(220, minDistance * 0.52)));
+          
+          // Hide object preview chips if box width drops below 140px threshold
+          if (boxWidth < 140) return null;
+
           const objPos = positions.objectPositions[objItem.id] || { x: 0, y: 0 };
 
           return (

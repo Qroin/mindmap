@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 
 /* 1ST-LEVEL ROOM BOX CONTAINER (ICON-FREE PURE TEXT) */
-export function LocationNode({ location, pos, objectCount, onMouseDown, onOpenModal, onEnterLocationMode }) {
+export function LocationNode({ location, pos, objectCount, onMouseDown, onOpenModal, onEnterLocationMode, boxWidth, boxHeight }) {
   const [isDragReady, setIsDragReady] = useState(false);
   const timerRef = useRef(null);
   const isLongPressedRef = useRef(false);
@@ -26,6 +26,8 @@ export function LocationNode({ location, pos, objectCount, onMouseDown, onOpenMo
       style={{
         left: `${pos.x}px`,
         top: `${pos.y}px`,
+        width: boxWidth ? `${boxWidth}px` : undefined,
+        height: boxHeight ? `${boxHeight}px` : undefined,
         borderColor: isDragReady ? '#f59e0b' : (location.color ? `${location.color}bb` : undefined),
         boxShadow: isDragReady ? '0 0 40px #f59e0b' : (location.color ? `0 0 30px ${location.color}44` : undefined)
       }}

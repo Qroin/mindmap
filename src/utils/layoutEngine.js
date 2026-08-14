@@ -5,10 +5,10 @@ export function calculateDomain3TierPositions(locations, objects) {
   const objectPositions = {};
 
   const roomCenters = [
-    { x: -280, y: -200 }, // Top-Left: Indoor
-    { x: 280, y: -200 },  // Top-Right: City/Cafe
-    { x: -280, y: 200 },  // Bottom-Left: Nature
-    { x: 280, y: 200 }    // Bottom-Right: Office
+    { x: -140, y: -100 }, // Top-Left: Indoor
+    { x: 140, y: -100 },  // Top-Right: City/Cafe
+    { x: -140, y: 100 },  // Bottom-Left: Nature
+    { x: 140, y: 100 }    // Bottom-Right: Office
   ];
 
   locations.forEach((loc, index) => {
@@ -21,8 +21,8 @@ export function calculateDomain3TierPositions(locations, objects) {
       const col = oIdx % 2;
       const row = Math.floor(oIdx / 2);
       
-      const relX = col === 0 ? -80 : 80;
-      const relY = row === 0 ? -20 : 50;
+      const relX = col === 0 ? -42 : 42;
+      const relY = row === 0 ? -24 : 24;
 
       const ox = center.x + relX;
       const oy = center.y + relY;

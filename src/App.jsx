@@ -5,7 +5,7 @@ import MindmapCanvas from './components/MindmapCanvas.jsx';
 import MobileRelationView from './components/MobileRelationView.jsx';
 import { LocationListModal, QuickTagModal, CreateLocationAtPositionModal } from './components/LocationListModal.jsx';
 
-import { LOCATION_CATEGORIES, OBJECT_NODES, INITIAL_PHOTOS } from './utils/sampleData.js';
+import { LOCATION_CATEGORIES, OBJECT_NODES, INITIAL_PHOTOS, getRandomColor } from './utils/sampleData.js';
 import { calculateDomain3TierPositions } from './utils/layoutEngine.js';
 
 export default function App() {
@@ -70,13 +70,18 @@ export default function App() {
   };
 
   const handleAddLocationAtPosition = (newLoc) => {
-    setLocations(prev => [...prev, newLoc]);
+    const locWithRandomColor = {
+      ...newLoc,
+      color: newLoc.color || getRandomColor()
+    };
+
+    setLocations(prev => [...prev, locWithRandomColor]);
 
     setPositions(prev => ({
       ...prev,
       locationPositions: {
         ...prev.locationPositions,
-        [newLoc.id]: { x: newLoc.x, y: newLoc.y }
+        [locWithRandomColor.id]: { x: locWithRandomColor.x, y: locWithRandomColor.y }
       }
     }));
 
@@ -87,8 +92,7 @@ export default function App() {
     const newObj = {
       id: `obj-custom-${Date.now()}`,
       locationId: locationId,
-      name: newObjName,
-      icon: '📦'
+      name: newObjName
     };
     setObjects(prev => [...prev, newObj]);
     triggerConfetti();
@@ -118,7 +122,7 @@ export default function App() {
           setCurrentIndex={setCurrentIndex}
         />
       ) : (
-        /* 100% FULLSCREEN STREAMLINED MINDMAP (Tag-Free) */
+        /* 100% FULLSCREEN STREAMLINED MINDMAP (Pure Text & Random Colors) */
         <MindmapCanvas
           locations={locations}
           objects={objects}

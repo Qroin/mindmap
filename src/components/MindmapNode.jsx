@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 
-/* 1ST-LEVEL ROOM BOX CONTAINER */
+/* 1ST-LEVEL ROOM BOX CONTAINER (ICON-FREE PURE TEXT) */
 export function LocationNode({ location, pos, objectCount, onMouseDown, onOpenModal, onEnterLocationMode }) {
   const [isDragReady, setIsDragReady] = useState(false);
   const timerRef = useRef(null);
@@ -34,7 +34,7 @@ export function LocationNode({ location, pos, objectCount, onMouseDown, onOpenMo
       onTouchStart={handleStart}
       onTouchEnd={handleEnd}
     >
-      {/* Centered Streamlined Location Name Button */}
+      {/* Centered Pure Text Location Name Button */}
       <div 
         className="room-centered-label"
         onClick={(e) => {
@@ -43,14 +43,13 @@ export function LocationNode({ location, pos, objectCount, onMouseDown, onOpenMo
         }}
         title="터치하여 방 진입"
       >
-        <span className="room-icon">{location.icon}</span>
         <span className="room-title">{location.name}</span>
       </div>
     </div>
   );
 }
 
-/* 2ND-LEVEL OBJECT NODE (TAG-FREE) */
+/* 2ND-LEVEL OBJECT NODE (ICON-FREE PURE TEXT) */
 export function ObjectNode({ objectItem, pos, location, onMouseDown, onOpenObjectModal }) {
   const timerRef = useRef(null);
   const isLongPressedRef = useRef(false);
@@ -86,16 +85,14 @@ export function ObjectNode({ objectItem, pos, location, onMouseDown, onOpenObjec
       onTouchEnd={handleEnd}
       title="드래그하여 방 내 가구배치 이동"
     >
-      <span className="object-tier-icon">{objectItem.icon}</span>
       <span className="object-tier-name">{objectItem.name}</span>
     </div>
   );
 }
 
-/* MINI 3-LETTER SQUARE PREVIEW CHIP (READ-ONLY IN OVERVIEW MODE) */
+/* MINI 3-LETTER SQUARE PREVIEW CHIP (PURE TEXT, ICON-FREE) */
 export function MiniObjectPreviewChip({ objectItem, pos, location }) {
-  const rawText = (objectItem.name || '').replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
-  const shortText = rawText.slice(0, 3) || objectItem.name.slice(0, 3);
+  const shortText = (objectItem.name || '').slice(0, 3);
 
   return (
     <div
@@ -106,7 +103,6 @@ export function MiniObjectPreviewChip({ objectItem, pos, location }) {
         borderColor: location?.color ? `${location.color}55` : 'rgba(255,255,255,0.12)'
       }}
     >
-      <span style={{ fontSize: '11px' }}>{objectItem.icon}</span>
       <span>{shortText}</span>
     </div>
   );

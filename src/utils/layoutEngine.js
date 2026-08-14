@@ -1,140 +1,66 @@
-// Dynamic Mindmap Layout Engine
+// 3-Tier Concentric Domain Layout Engine (Location -> Object -> Feature)
 
 /**
- * Calculates (x, y) spatial positions for Root, Categories, and Photo nodes based on layout mode.
- * @param {Array} categories List of category objects
- * @param {Array} photos List of photo objects
- * @param {String} mode 'radial' | 'tree' | 'cluster' | 'grid'
- * @returns {Object} { rootPos, categoryPositions, photoPositions }
+ * Calculates (x, y) spatial coordinates for 3-tier domain hierarchy.
+ * Inner Ring R1 (Location) -> Middle Ring R2 (Object) -> Outer Ring R3 (Feature/Attribute)
  */
-export function calculateMindmapPositions(categories, photos, mode = 'radial') {
-  const rootPos = { x: 0, y: 0 };
-  const categoryPositions = {};
-  const photoPositions = {};
+export function calculateDomain3TierPositions(locations, objects, features) {
+  const locationPositions = {};
+  const objectPositions = {};
+  const featurePositions = {};
 
-  if (mode === 'radial') {
-    const numCats = categories.length;
-    const catRadius = 380;
-    const photoRadiusOffset = 260;
+  const numLocs = locations.length;
+  const r1 = 180; // Inner Radius (Location)
+  const r2 = 380; // Middle Radius (Object)
+  const r3 = 620; // Outer Radius (Feature)
 
-    categories.forEach((cat, index) => {
-      // Angle around root
-      const angle = (index / numCats) * Math.PI * 2 - Math.PI / 2;
-      const catX = Math.cos(angle) * catRadius;
-      const catY = Math.sin(angle) * catRadius;
+  // 1. Position Location Nodes in Inner Ring (Centered around 0,0 - NO central root node)
+  locations.forEach((loc, index) => {
+    const locAngle = (index / numLocs) * Math.PI * 2 - Math.PI / 2;
+    const lx = Math.cos(locAngle) * r1;
+    const ly = Math.sin(locAngle) * r1;
 
-      categoryPositions[cat.id] = { x: catX, y: catY };
+    locationPositions[loc.id] = { x: lx, y: ly, angle: locAngle };
 
-      // Filter photos in this category
-      const catPhotos = photos.filter(p => p.categoryId === cat.id);
-      const numPhotos = catPhotos.length;
+    // 2. Position Object Nodes in Middle Ring (Radiating from parent Location)
+    const locObjs = objects.filter(o => o.locationId === loc.id);
+    const numObjs = locObjs.length;
+    const locArc = (Math.PI * 2) / numLocs * 0.85;
+    const startObjAngle = locAngle - locArc / 2;
 
-      // Arc spread for photos
-      const arcSpread = Math.min(Math.PI * 0.8, numPhotos * 0.35);
-      const startAngle = angle - arcSpread / 2;
+    locObjs.forEach((obj, oIdx) => {
+      const objAngle = numObjs === 1 ? locAngle : startObjAngle + (oIdx / (numObjs - 1)) * locArc;
+      const ox = Math.cos(objAngle) * r2;
+      const oy = Math.sin(objAngle) * r2;
 
-      catPhotos.forEach((photo, pIdx) => {
-        const photoAngle = numPhotos === 1 ? angle : startAngle + (pIdx / (numPhotos - 1)) * arcSpread;
-        // Stagger distance slightly for visual interest
-        const distance = catRadius + photoRadiusOffset + (pIdx % 2 === 0 ? 0 : 40);
+      objectPositions[obj.id] = { x: ox, y: oy, angle: objAngle };
 
-        const px = Math.cos(photoAngle) * distance;
-        const py = Math.sin(photoAngle) * distance;
+      // 3. Position Feature Nodes in Outer Ring (Radiating from parent Object)
+      const objFeats = features.filter(f => f.objectId === obj.id);
+      const numFeats = objFeats.length;
+      const objArc = locArc / Math.max(numObjs, 1) * 0.9;
+      const startFeatAngle = objAngle - objArc / 2;
 
-        photoPositions[photo.id] = { x: px, y: py };
+      objFeats.forEach((feat, fIdx) => {
+        const featAngle = numFeats === 1 ? objAngle : startFeatAngle + (fIdx / (numFeats - 1)) * objArc;
+        const fx = Math.cos(featAngle) * (r3 + (fIdx % 2 === 0 ? 0 : 35));
+        const fy = Math.sin(featAngle) * (r3 + (fIdx % 2 === 0 ? 0 : 35));
+
+        featurePositions[feat.id] = { x: fx, y: fy };
       });
     });
-  } else if (mode === 'tree') {
-    // Horizontal tree layout (Left to Right)
-    rootPos.x = -500;
-    rootPos.y = 0;
+  });
 
-    const catX = -100;
-    const photoX = 350;
-    const verticalGap = 160;
-
-    let currentY = -((categories.length * verticalGap) / 2);
-
-    categories.forEach((cat) => {
-      const catPhotos = photos.filter(p => p.categoryId === cat.id);
-      const catHeight = Math.max(catPhotos.length * 140, verticalGap);
-      const catCenterY = currentY + catHeight / 2;
-
-      categoryPositions[cat.id] = { x: catX, y: catCenterY };
-
-      let photoY = catCenterY - ((catPhotos.length - 1) * 140) / 2;
-      catPhotos.forEach((photo) => {
-        photoPositions[photo.id] = { x: photoX, y: photoY };
-        photoY += 140;
-      });
-
-      currentY += catHeight + 40;
-    });
-  } else if (mode === 'cluster') {
-    // Organic cluster layout
-    rootPos.x = 0;
-    rootPos.y = 0;
-
-    const catDistances = [
-      { x: -350, y: -250 },
-      { x: 350, y: -250 },
-      { x: -400, y: 200 },
-      { x: 400, y: 200 },
-      { x: 0, y: -450 },
-      { x: 0, y: 450 }
-    ];
-
-    categories.forEach((cat, index) => {
-      const basePos = catDistances[index % catDistances.length];
-      categoryPositions[cat.id] = { ...basePos };
-
-      const catPhotos = photos.filter(p => p.categoryId === cat.id);
-      const cols = 2;
-      catPhotos.forEach((photo, pIdx) => {
-        const col = pIdx % cols;
-        const row = Math.floor(pIdx / cols);
-        const offsetX = (col - (cols - 1) / 2) * 220 + (row % 2 ? 20 : -20);
-        const offsetY = (row + 1) * 160;
-
-        photoPositions[photo.id] = {
-          x: basePos.x + offsetX,
-          y: basePos.y + offsetY
-        };
-      });
-    });
-  } else if (mode === 'grid') {
-    // Structured grid layout
-    rootPos.x = 0;
-    rootPos.y = -400;
-
-    let startX = -600;
-    categories.forEach((cat, catIdx) => {
-      const colX = startX + (catIdx % 3) * 420;
-      const rowY = Math.floor(catIdx / 3) * 500 - 150;
-
-      categoryPositions[cat.id] = { x: colX, y: rowY };
-
-      const catPhotos = photos.filter(p => p.categoryId === cat.id);
-      catPhotos.forEach((photo, pIdx) => {
-        photoPositions[photo.id] = {
-          x: colX + (pIdx % 2 === 0 ? -90 : 90),
-          y: rowY + 140 + Math.floor(pIdx / 2) * 150
-        };
-      });
-    });
-  }
-
-  return { rootPos, categoryPositions, photoPositions };
+  return { locationPositions, objectPositions, featurePositions };
 }
 
 /**
- * Calculates a smooth SVG cubic bezier path string between two points (x1, y1) and (x2, y2).
+ * Calculates smooth SVG bezier path between two nodes.
  */
-export function getBezierPath(x1, y1, x2, y2, curvature = 0.5) {
+export function getBezierPath(x1, y1, x2, y2, curvature = 0.4) {
   const dx = x2 - x1;
   const dy = y2 - y1;
 
-  // Control points
   const cx1 = x1 + dx * curvature;
   const cy1 = y1;
   const cx2 = x2 - dx * curvature;

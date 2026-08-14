@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { LocationNode, ObjectNode, MiniObjectPreviewChip } from './MindmapNode.jsx';
 
 export default function MindmapCanvas({
@@ -18,6 +18,62 @@ export default function MindmapCanvas({
   const [isPanning, setIsPanning] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [draggingNode, setDraggingNode] = useState(null);
+
+  // Screen viewport dimensions listener
+  const [viewport, setViewport] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 800,
+    height: typeof window !== 'undefined' ? window.innerHeight : 600
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Calculate 80% boundary of min(width, height)
+  const screenMin = Math.min(viewport.width, viewport.height);
+  const maxAllowedSpan = screenMin * 0.8;
+
+  // Find position extents for location nodes (leftmost, rightmost, topmost, bottommost)
+  let minLocX = Infinity, maxLocX = -Infinity;
+  let minLocY = Infinity, maxLocY = -Infinity;
+
+  locations.forEach((loc) => {
+    const locPos = positions.locationPositions[loc.id];
+    if (locPos) {
+      if (locPos.x < minLocX) minLocX = locPos.x;
+      if (locPos.x > maxLocX) maxLocX = locPos.x;
+      if (locPos.y < minLocY) minLocY = locPos.y;
+      if (locPos.y > maxLocY) maxLocY = locPos.y;
+    }
+  });
+
+  const hasMultipleLocations = locations.length > 1 && isFinite(minLocX) && isFinite(maxLocX);
+  const dX = hasMultipleLocations ? (maxLocX - minLocX) : 0;
+  const dY = hasMultipleLocations ? (maxLocY - minLocY) : 0;
+
+  // Box dimensions calculation:
+  // Total span = dX + boxWidth = maxAllowedSpan (0.8 * screenMin)
+  // boxWidth = (maxAllowedSpan - dX)
+  let globalBoxWidth = 170;
+  let globalBoxHeight = 120;
+
+  if (locations.length === 1) {
+    globalBoxWidth = Math.round(maxAllowedSpan * 0.5);
+    globalBoxHeight = Math.round(maxAllowedSpan * 0.35);
+  } else if (locations.length > 1) {
+    const calcW = maxAllowedSpan - dX;
+    globalBoxWidth = Math.round(Math.max(50, calcW));
+
+    const calcH = maxAllowedSpan - dY;
+    globalBoxHeight = Math.round(Math.max(40, Math.min(calcH, globalBoxWidth * 0.7)));
+  }
 
   const blankLongPressTimerRef = useRef(null);
   const isBlankLongPressRef = useRef(false);
@@ -194,19 +250,6 @@ export default function MindmapCanvas({
           const objCount = objects.filter(o => o.locationId === loc.id).length;
           const isNeighbor = activeLocationMode && activeLocationMode !== loc.id;
 
-          // Calculate dynamic box dimensions based on distance to neighbor nodes
-          let minDistance = Infinity;
-          locations.forEach((other) => {
-            if (other.id === loc.id) return;
-            const otherPos = positions.locationPositions[other.id];
-            if (!otherPos) return;
-            const d = Math.hypot(locPos.x - otherPos.x, locPos.y - otherPos.y);
-            if (d < minDistance) minDistance = d;
-          });
-
-          const boxWidth = minDistance === Infinity ? 170 : Math.round(Math.max(110, Math.min(220, minDistance * 0.52)));
-          const boxHeight = minDistance === Infinity ? 120 : Math.round(Math.max(75, Math.min(145, minDistance * 0.38)));
-
           return (
             <div 
               key={loc.id}
@@ -216,8 +259,8 @@ export default function MindmapCanvas({
                 location={loc}
                 pos={locPos}
                 objectCount={objCount}
-                boxWidth={boxWidth}
-                boxHeight={boxHeight}
+                boxWidth={globalBoxWidth}
+                boxHeight={globalBoxHeight}
                 onMouseDown={handleNodeMouseDown}
                 onOpenModal={(locationObj) => onLocationClick && onLocationClick(locationObj)}
                 onEnterLocationMode={(locationObj) => handleEnterLocationMode(locationObj)}
@@ -231,22 +274,8 @@ export default function MindmapCanvas({
           const loc = locations.find(l => l.id === objItem.locationId);
           if (!loc) return null;
 
-          const locPos = positions.locationPositions[loc.id] || { x: 0, y: 0 };
-          
-          // Calculate parent room box width to check preview threshold
-          let minDistance = Infinity;
-          locations.forEach((other) => {
-            if (other.id === loc.id) return;
-            const otherPos = positions.locationPositions[other.id];
-            if (!otherPos) return;
-            const d = Math.hypot(locPos.x - otherPos.x, locPos.y - otherPos.y);
-            if (d < minDistance) minDistance = d;
-          });
-
-          const boxWidth = minDistance === Infinity ? 170 : Math.round(Math.max(110, Math.min(220, minDistance * 0.52)));
-          
-          // Hide object preview chips if box width drops below 140px threshold
-          if (boxWidth < 140) return null;
+          // Hide object preview chips if box width drops below 100px threshold
+          if (globalBoxWidth < 100) return null;
 
           const objPos = positions.objectPositions[objItem.id] || { x: 0, y: 0 };
 

@@ -1,16 +1,13 @@
 import React, { useRef, useState } from 'react';
-import { LocationNode, ObjectNode, FeaturePillNode, MiniObjectPreviewChip } from './MindmapNode.jsx';
-import { getBezierPath } from '../utils/layoutEngine.js';
+import { LocationNode, ObjectNode, MiniObjectPreviewChip } from './MindmapNode.jsx';
 
 export default function MindmapCanvas({
   locations,
   objects,
-  features,
   positions,
   setPositions,
   pan,
   setPan,
-  searchTerm,
   onLocationClick,
   onObjectClick,
   activeLocationMode,
@@ -21,20 +18,9 @@ export default function MindmapCanvas({
   const [isPanning, setIsPanning] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [draggingNode, setDraggingNode] = useState(null);
-  const [hoveredNodeId, setHoveredNodeId] = useState(null);
 
   const blankLongPressTimerRef = useRef(null);
   const isBlankLongPressRef = useRef(false);
-
-  const zoom = 1.0;
-
-  const searchLower = (searchTerm || '').toLowerCase().trim();
-  const isSearchActive = searchLower.length > 0;
-
-  const matchesSearch = (feat) => {
-    if (!isSearchActive) return false;
-    return feat.name.toLowerCase().includes(searchLower);
-  };
 
   const getClientCoords = (e) => {
     if (e.touches && e.touches.length > 0) {
@@ -60,8 +46,7 @@ export default function MindmapCanvas({
     if (activeLocationMode) {
       const isInsideNode = 
         e.target.closest('.location-room-box') ||
-        e.target.closest('.object-tier-node') ||
-        e.target.closest('.feature-tier-node');
+        e.target.closest('.object-tier-node');
 
       if (!isInsideNode) {
         handleExitLocationMode();
@@ -71,8 +56,7 @@ export default function MindmapCanvas({
 
     if (
       e.target.closest('.location-room-box') ||
-      e.target.closest('.object-tier-node') ||
-      e.target.closest('.feature-tier-node')
+      e.target.closest('.object-tier-node')
     ) {
       return;
     }
@@ -119,7 +103,6 @@ export default function MindmapCanvas({
       if (draggingNode.type === 'location') {
         const locId = draggingNode.id;
         const roomObjs = objects.filter(o => o.locationId === locId);
-        const roomObjIds = new Set(roomObjs.map(o => o.id));
 
         setPositions(prev => {
           const newLocPos = {
@@ -138,21 +121,10 @@ export default function MindmapCanvas({
             }
           });
 
-          const newFeatPos = { ...prev.featurePositions };
-          (features || []).forEach(feat => {
-            if (roomObjIds.has(feat.objectId) && newFeatPos[feat.id]) {
-              newFeatPos[feat.id] = {
-                ...newFeatPos[feat.id],
-                x: newX + (newFeatPos[feat.id].relX || 0),
-                y: newY + (newFeatPos[feat.id].relY || 0)
-              };
-            }
-          });
-
           return {
             locationPositions: newLocPos,
             objectPositions: newObjPos,
-            featurePositions: newFeatPos
+            featurePositions: {}
           };
         });
       } else if (draggingNode.type === 'object') {
@@ -161,14 +133,6 @@ export default function MindmapCanvas({
           objectPositions: {
             ...prev.objectPositions,
             [draggingNode.id]: { ...prev.objectPositions[draggingNode.id], x: newX, y: newY }
-          }
-        }));
-      } else if (draggingNode.type === 'feature') {
-        setPositions(prev => ({
-          ...prev,
-          featurePositions: {
-            ...prev.featurePositions,
-            [draggingNode.id]: { x: newX, y: newY }
           }
         }));
       }
@@ -195,9 +159,6 @@ export default function MindmapCanvas({
     } else if (type === 'object') {
       initialX = positions.objectPositions[nodeId]?.x || 0;
       initialY = positions.objectPositions[nodeId]?.y || 0;
-    } else if (type === 'feature') {
-      initialX = positions.featurePositions[nodeId]?.x || 0;
-      initialY = positions.featurePositions[nodeId]?.y || 0;
     }
 
     setDraggingNode({
@@ -227,33 +188,6 @@ export default function MindmapCanvas({
           transform: `translate(${pan.x + window.innerWidth / 2}px, ${pan.y + window.innerHeight / 2}px)`
         }}
       >
-        {/* SVG Bezier Connections */}
-        <svg className="svg-layer">
-          {activeLocationMode && objects.map((objItem) => {
-            const loc = locations.find(l => l.id === objItem.locationId);
-            if (activeLocationMode !== loc?.id) return null;
-
-            const objPos = positions.objectPositions[objItem.id] || { x: 0, y: 0 };
-            const objFeats = (features || []).filter(f => f.objectId === objItem.id);
-
-            return objFeats.map((feat) => {
-              const featPos = positions.featurePositions[feat.id] || { x: 0, y: 0 };
-              const pathStr = getBezierPath(objPos.x, objPos.y, featPos.x, featPos.y, 0.2);
-              const isHovered = hoveredNodeId === objItem.id || hoveredNodeId === feat.id;
-
-              return (
-                <path
-                  key={`obj-feat-${feat.id}`}
-                  d={pathStr}
-                  className="mindmap-connector"
-                  stroke={isHovered ? '#818cf8' : (loc?.color ? `${loc.color}77` : 'rgba(255,255,255,0.25)')}
-                  strokeWidth={isHovered ? 3 : 1.5}
-                />
-              );
-            });
-          })}
-        </svg>
-
         {/* 1. ROOM BOX CONTAINERS */}
         {locations.map((loc) => {
           const locPos = positions.locationPositions[loc.id] || { x: 0, y: 0 };
@@ -298,7 +232,6 @@ export default function MindmapCanvas({
           if (activeLocationMode !== loc?.id) return null;
 
           const objPos = positions.objectPositions[objItem.id] || { x: 0, y: 0 };
-          const featCount = (features || []).filter(f => f.objectId === objItem.id).length;
 
           return (
             <ObjectNode
@@ -306,31 +239,8 @@ export default function MindmapCanvas({
               objectItem={objItem}
               pos={objPos}
               location={loc}
-              featureCount={featCount}
               onMouseDown={handleNodeMouseDown}
               onOpenObjectModal={(locObj, obj) => onObjectClick && onObjectClick(locObj, obj)}
-            />
-          );
-        })}
-
-        {/* ROOM ENTRY MODE: FEATURE PILL NODES */}
-        {activeLocationMode && (features || []).map((feat) => {
-          const objItem = objects.find(o => o.id === feat.objectId);
-          const loc = locations.find(l => l.id === objItem?.locationId);
-          if (activeLocationMode !== loc?.id) return null;
-
-          const featPos = positions.featurePositions[feat.id] || { x: 0, y: 0 };
-
-          return (
-            <FeaturePillNode
-              key={feat.id}
-              feature={feat}
-              pos={featPos}
-              location={loc}
-              isHighlighted={matchesSearch(feat)}
-              onMouseDown={handleNodeMouseDown}
-              onHover={(id) => setHoveredNodeId(id)}
-              onHoverLeave={() => setHoveredNodeId(null)}
             />
           );
         })}

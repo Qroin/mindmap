@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Tag } from 'lucide-react';
 
-/* 1ST-LEVEL ROOM BOX CONTAINER (CENTERED LOCATION NAME BUTTON) */
+/* 1ST-LEVEL ROOM BOX CONTAINER */
 export function LocationNode({ location, pos, objectCount, onMouseDown, onOpenModal, onEnterLocationMode }) {
   const [isDragReady, setIsDragReady] = useState(false);
   const timerRef = useRef(null);
@@ -51,8 +50,8 @@ export function LocationNode({ location, pos, objectCount, onMouseDown, onOpenMo
   );
 }
 
-/* 2ND-LEVEL OBJECT NODE */
-export function ObjectNode({ objectItem, pos, location, featureCount, onMouseDown, onOpenObjectModal }) {
+/* 2ND-LEVEL OBJECT NODE (TAG-FREE) */
+export function ObjectNode({ objectItem, pos, location, onMouseDown, onOpenObjectModal }) {
   const timerRef = useRef(null);
   const isLongPressedRef = useRef(false);
 
@@ -67,7 +66,7 @@ export function ObjectNode({ objectItem, pos, location, featureCount, onMouseDow
   const handleEnd = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
-    if (!isLongPressedRef.current) {
+    if (!isLongPressedRef.current && onOpenObjectModal) {
       onOpenObjectModal(location, objectItem);
     }
   };
@@ -85,19 +84,10 @@ export function ObjectNode({ objectItem, pos, location, featureCount, onMouseDow
       onMouseUp={handleEnd}
       onTouchStart={handleStart}
       onTouchEnd={handleEnd}
-      title="드래그하여 가구배치 이동 | 클릭시 태그 설정"
+      title="드래그하여 방 내 가구배치 이동"
     >
       <span className="object-tier-icon">{objectItem.icon}</span>
       <span className="object-tier-name">{objectItem.name}</span>
-      <span 
-        className="object-tier-count"
-        style={{
-          background: location?.color ? `${location.color}40` : 'rgba(255,255,255,0.15)',
-          color: location?.color || '#a5b4fc'
-        }}
-      >
-        {featureCount}
-      </span>
     </div>
   );
 }
@@ -118,42 +108,6 @@ export function MiniObjectPreviewChip({ objectItem, pos, location }) {
     >
       <span style={{ fontSize: '11px' }}>{objectItem.icon}</span>
       <span>{shortText}</span>
-    </div>
-  );
-}
-
-/* 3RD-LEVEL FEATURE PILL NODE */
-export function FeaturePillNode({ feature, pos, location, isHighlighted, onMouseDown, onHover, onHoverLeave }) {
-  const timerRef = useRef(null);
-
-  const handleStart = (e) => {
-    timerRef.current = setTimeout(() => {
-      onMouseDown(e, feature.id, 'feature');
-    }, 220);
-  };
-
-  const handleEnd = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-  };
-
-  return (
-    <div
-      className={`feature-tier-node ${isHighlighted ? 'highlighted' : ''}`}
-      style={{
-        left: `${pos.x}px`,
-        top: `${pos.y}px`,
-        borderColor: location?.color ? `${location.color}66` : 'rgba(255,255,255,0.15)',
-        boxShadow: location?.color ? `0 0 14px ${location.color}25` : undefined
-      }}
-      onMouseDown={handleStart}
-      onMouseUp={handleEnd}
-      onTouchStart={handleStart}
-      onTouchEnd={handleEnd}
-      onMouseEnter={() => onHover && onHover(feature.id)}
-      onMouseLeave={() => onHoverLeave && onHoverLeave()}
-    >
-      <Tag size={11} color={location?.color || '#a5b4fc'} style={{ flexShrink: 0 }} />
-      <span className="feature-tier-name">{feature.name}</span>
     </div>
   );
 }

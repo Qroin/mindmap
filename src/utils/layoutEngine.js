@@ -1,11 +1,9 @@
-// Floorplan Room Layout Engine (Room Group Center + Relative Offsets)
+// Floorplan Room Layout Engine (Tagging Removed)
 
-export function calculateDomain3TierPositions(locations, objects, features = []) {
+export function calculateDomain3TierPositions(locations, objects) {
   const locationPositions = {};
   const objectPositions = {};
-  const featurePositions = {};
 
-  // 4 Room Group Centers
   const roomCenters = [
     { x: -280, y: -200 }, // Top-Left: Indoor
     { x: 280, y: -200 },  // Top-Right: City/Cafe
@@ -30,21 +28,10 @@ export function calculateDomain3TierPositions(locations, objects, features = [])
       const oy = center.y + relY;
 
       objectPositions[obj.id] = { x: ox, y: oy, relX, relY };
-
-      const objFeats = features.filter(f => f.objectId === obj.id);
-      objFeats.forEach((feat, fIdx) => {
-        const featRelX = relX + (fIdx % 2 === 0 ? -40 : 40);
-        const featRelY = relY + 30 + Math.floor(fIdx / 2) * 24;
-
-        const fx = center.x + featRelX;
-        const fy = center.y + featRelY;
-
-        featurePositions[feat.id] = { x: fx, y: fy, relX: featRelX, relY: featRelY };
-      });
     });
   });
 
-  return { locationPositions, objectPositions, featurePositions };
+  return { locationPositions, objectPositions, featurePositions: {} };
 }
 
 export function getBezierPath(x1, y1, x2, y2, curvature = 0.3) {

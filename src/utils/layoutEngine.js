@@ -1,52 +1,45 @@
-// 3-Tier Concentric Domain Layout Engine (Location -> Object -> Feature)
+// Floorplan Room Layout Engine (Room Group Center + Relative Offsets)
 
-/**
- * Calculates (x, y) spatial coordinates for 3-tier domain hierarchy.
- * Inner Ring R1 (Location) -> Middle Ring R2 (Object) -> Outer Ring R3 (Feature/Attribute)
- */
-export function calculateDomain3TierPositions(locations, objects, features) {
+export function calculateDomain3TierPositions(locations, objects, features = []) {
   const locationPositions = {};
   const objectPositions = {};
   const featurePositions = {};
 
-  const numLocs = locations.length;
-  const r1 = 180; // Inner Radius (Location)
-  const r2 = 380; // Middle Radius (Object)
-  const r3 = 620; // Outer Radius (Feature)
+  // 4 Room Group Centers
+  const roomCenters = [
+    { x: -280, y: -200 }, // Top-Left: Indoor
+    { x: 280, y: -200 },  // Top-Right: City/Cafe
+    { x: -280, y: 200 },  // Bottom-Left: Nature
+    { x: 280, y: 200 }    // Bottom-Right: Office
+  ];
 
-  // 1. Position Location Nodes in Inner Ring (Centered around 0,0 - NO central root node)
   locations.forEach((loc, index) => {
-    const locAngle = (index / numLocs) * Math.PI * 2 - Math.PI / 2;
-    const lx = Math.cos(locAngle) * r1;
-    const ly = Math.sin(locAngle) * r1;
+    const center = roomCenters[index % roomCenters.length];
+    locationPositions[loc.id] = { x: center.x, y: center.y };
 
-    locationPositions[loc.id] = { x: lx, y: ly, angle: locAngle };
-
-    // 2. Position Object Nodes in Middle Ring (Radiating from parent Location)
     const locObjs = objects.filter(o => o.locationId === loc.id);
-    const numObjs = locObjs.length;
-    const locArc = (Math.PI * 2) / numLocs * 0.85;
-    const startObjAngle = locAngle - locArc / 2;
 
     locObjs.forEach((obj, oIdx) => {
-      const objAngle = numObjs === 1 ? locAngle : startObjAngle + (oIdx / (numObjs - 1)) * locArc;
-      const ox = Math.cos(objAngle) * r2;
-      const oy = Math.sin(objAngle) * r2;
+      const col = oIdx % 2;
+      const row = Math.floor(oIdx / 2);
+      
+      const relX = col === 0 ? -80 : 80;
+      const relY = row === 0 ? -20 : 50;
 
-      objectPositions[obj.id] = { x: ox, y: oy, angle: objAngle };
+      const ox = center.x + relX;
+      const oy = center.y + relY;
 
-      // 3. Position Feature Nodes in Outer Ring (Radiating from parent Object)
+      objectPositions[obj.id] = { x: ox, y: oy, relX, relY };
+
       const objFeats = features.filter(f => f.objectId === obj.id);
-      const numFeats = objFeats.length;
-      const objArc = locArc / Math.max(numObjs, 1) * 0.9;
-      const startFeatAngle = objAngle - objArc / 2;
-
       objFeats.forEach((feat, fIdx) => {
-        const featAngle = numFeats === 1 ? objAngle : startFeatAngle + (fIdx / (numFeats - 1)) * objArc;
-        const fx = Math.cos(featAngle) * (r3 + (fIdx % 2 === 0 ? 0 : 35));
-        const fy = Math.sin(featAngle) * (r3 + (fIdx % 2 === 0 ? 0 : 35));
+        const featRelX = relX + (fIdx % 2 === 0 ? -40 : 40);
+        const featRelY = relY + 30 + Math.floor(fIdx / 2) * 24;
 
-        featurePositions[feat.id] = { x: fx, y: fy };
+        const fx = center.x + featRelX;
+        const fy = center.y + featRelY;
+
+        featurePositions[feat.id] = { x: fx, y: fy, relX: featRelX, relY: featRelY };
       });
     });
   });
@@ -54,10 +47,7 @@ export function calculateDomain3TierPositions(locations, objects, features) {
   return { locationPositions, objectPositions, featurePositions };
 }
 
-/**
- * Calculates smooth SVG bezier path between two nodes.
- */
-export function getBezierPath(x1, y1, x2, y2, curvature = 0.4) {
+export function getBezierPath(x1, y1, x2, y2, curvature = 0.3) {
   const dx = x2 - x1;
   const dy = y2 - y1;
 

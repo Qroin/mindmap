@@ -1,5 +1,122 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, Plus, Tag, GripVertical, ChevronRight, Check, ArrowLeft } from 'lucide-react';
+import { X, Settings, Plus, Tag, GripVertical, ChevronRight, ArrowLeft, MapPin } from 'lucide-react';
+
+/* NEW LOCATION CREATION MODAL AT TOUCH POSITION */
+export function CreateLocationAtPositionModal({
+  isOpen,
+  position,
+  onClose,
+  onCreateLocation
+}) {
+  if (!isOpen || !position) return null;
+
+  const [name, setName] = useState('');
+  const [icon, setIcon] = useState('🏕️');
+  const [color, setColor] = useState('#10B981');
+
+  const iconsList = ['🏕️', '🏖️', '🏬', '🚘', '🎨', '🍳', '☕', '🏡', '🎪', '✈️'];
+  const colorsList = ['#10B981', '#3B82F6', '#EF4444', '#8B5CF6', '#F59E0B', '#EC4899'];
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    onCreateLocation({
+      id: `loc-custom-${Date.now()}`,
+      name: `${icon} ${name.trim()}`,
+      icon: icon,
+      color: color,
+      x: position.x,
+      y: position.y
+    });
+
+    setName('');
+    onClose();
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" style={{ maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <MapPin size={18} color="#10B981" />
+            <h2 style={{ fontSize: '15px', fontWeight: '800' }}>터치 위치에 새 위치 공간 생성</h2>
+          </div>
+          <button className="glass-btn" onClick={onClose} style={{ padding: '4px' }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            선택한 캔버스 위치에 새로운 방 박스 공간을 생성합니다.
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>아이콘 선택</label>
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+              {iconsList.map((ic) => (
+                <button
+                  type="button"
+                  key={ic}
+                  onClick={() => setIcon(ic)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    fontSize: '20px',
+                    background: icon === ic ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.06)',
+                    border: `1.5px solid ${icon === ic ? '#10B981' : 'rgba(255,255,255,0.1)'}`,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {ic}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>위치 이름</label>
+            <input
+              type="text"
+              className="search-input"
+              style={{ paddingLeft: '14px', height: '42px', fontSize: '14px' }}
+              placeholder="예: 캠핑장, 휴가지, 갤러리..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>테마 색상</label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {colorsList.map((c) => (
+                <div
+                  key={c}
+                  onClick={() => setColor(c)}
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: c,
+                    cursor: 'pointer',
+                    border: color === c ? '2.5px solid #ffffff' : 'none',
+                    boxShadow: color === c ? `0 0 12px ${c}` : 'none'
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <button type="submit" className="glass-btn primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: '6px' }}>
+            <Plus size={16} /> 새 위치 공간 생성
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export function LocationListModal({
   isOpen,
@@ -92,7 +209,7 @@ export function LocationListModal({
   );
 }
 
-/* REUSABLE DEAD-CENTER POPUP MODAL (위치-사물-태깅 동일 모달 재활용) */
+/* REUSABLE DEAD-CENTER POPUP MODAL */
 export function QuickTagModal({
   location,
   initialObject = null,
@@ -106,15 +223,12 @@ export function QuickTagModal({
   if (!isOpen || !location) return null;
 
   const locObjs = objects.filter(o => o.locationId === location.id);
-
-  // Active object view: pre-set to initialObject if provided
   const [activeObject, setActiveObject] = useState(initialObject);
 
   useEffect(() => {
     setActiveObject(initialObject);
   }, [initialObject, location]);
 
-  // Forms state
   const [newObjName, setNewObjName] = useState('');
   const [isAddingObj, setIsAddingObj] = useState(false);
   const [tagInput, setTagInput] = useState('');
@@ -139,7 +253,6 @@ export function QuickTagModal({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header */}
         <div className="modal-header">
           {activeObject ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -171,10 +284,8 @@ export function QuickTagModal({
           </button>
         </div>
 
-        {/* Modal Body */}
         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {activeObject ? (
-            /* DEDICATED TAG EDITOR VIEW FOR SELECTED OBJECT */
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <label style={{ fontSize: '12px', fontWeight: '700', color: '#a5b4fc', display: 'block' }}>
                 [{activeObject.name}] 에 등록된 특징 태깅 List
@@ -207,13 +318,12 @@ export function QuickTagModal({
                 )}
               </div>
 
-              {/* Add Tag Form */}
               <form onSubmit={handleAddTagSubmit} style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
                 <input
                   type="text"
                   className="search-input"
                   style={{ flex: 1, paddingLeft: '12px' }}
-                  placeholder={`+ [${activeObject.name}]에 새 태그 추가 (예: #무드감성)...`}
+                  placeholder={`+ [${activeObject.name}]에 새 태그 추가...`}
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   autoFocus
@@ -233,7 +343,6 @@ export function QuickTagModal({
               </button>
             </div>
           ) : (
-            /* CLEAN OBJECT-ONLY VERTICAL LIST */
             <>
               <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block' }}>
                 소속 사물 List ({locObjs.length}개)
@@ -283,7 +392,6 @@ export function QuickTagModal({
                 })}
               </div>
 
-              {/* BOTTOM AT MODAL: '+ 사물 추가' Button / Form */}
               <div style={{ marginTop: '8px' }}>
                 {isAddingObj ? (
                   <form onSubmit={handleAddObjSubmit} className="glass-panel" style={{ padding: '12px', display: 'flex', gap: '8px' }}>

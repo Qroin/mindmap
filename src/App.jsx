@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import HeaderNav from './components/HeaderNav.jsx';
 import MindmapCanvas from './components/MindmapCanvas.jsx';
 import MobileRelationView from './components/MobileRelationView.jsx';
-import { LocationListModal, QuickTagModal } from './components/LocationListModal.jsx';
+import { LocationListModal, QuickTagModal, CreateLocationAtPositionModal } from './components/LocationListModal.jsx';
 
 import { LOCATION_CATEGORIES, OBJECT_NODES, FEATURE_ATTRIBUTES, INITIAL_PHOTOS } from './utils/sampleData.js';
 import { calculateDomain3TierPositions } from './utils/layoutEngine.js';
 
 export default function App() {
-  const [viewMode, setViewMode] = useState('mindmap'); // 'mobile-relation' | 'mindmap'
+  const [viewMode, setViewMode] = useState('mindmap');
 
   const [locations, setLocations] = useState(LOCATION_CATEGORIES);
   const [objects, setObjects] = useState(OBJECT_NODES);
@@ -17,9 +17,9 @@ export default function App() {
   const [photos, setPhotos] = useState(INITIAL_PHOTOS);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [activeLocationMode, setActiveLocationMode] = useState(null);
 
-  const [positions, setPositions] = useState({ locationPositions: {}, objectPositions: {}, featurePositions: {} });
-  const [zoom, setZoom] = useState(0.85);
+  const [positions, setPositions] = useState(() => calculateDomain3TierPositions(LOCATION_CATEGORIES, OBJECT_NODES, FEATURE_ATTRIBUTES));
   const [pan, setPan] = useState({ x: 0, y: 0 });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,11 +29,16 @@ export default function App() {
   const [tagModalLocation, setTagModalLocation] = useState(null);
   const [initialTagModalObject, setInitialTagModalObject] = useState(null);
 
-  const fileInputRef = useRef(null);
+  // New Location Creation at Touch Position State
+  const [createLocPos, setCreateLocPos] = useState(null);
 
   const handleAutoArrange = () => {
     const newPos = calculateDomain3TierPositions(locations, objects, features);
-    setPositions(newPos);
+    setPositions(prev => ({
+      locationPositions: { ...newPos.locationPositions, ...prev.locationPositions },
+      objectPositions: { ...newPos.objectPositions, ...prev.objectPositions },
+      featurePositions: { ...newPos.featurePositions, ...prev.featurePositions }
+    }));
   };
 
   useEffect(() => {
@@ -62,14 +67,23 @@ export default function App() {
     setFeatures(FEATURE_ATTRIBUTES);
     setPhotos(INITIAL_PHOTOS);
     setCurrentIndex(0);
-    setZoom(0.85);
+    setActiveLocationMode(null);
     setPan({ x: 0, y: 0 });
     const newPos = calculateDomain3TierPositions(LOCATION_CATEGORIES, OBJECT_NODES, FEATURE_ATTRIBUTES);
     setPositions(newPos);
   };
 
-  const handleAddLocation = (newLoc) => {
+  const handleAddLocationAtPosition = (newLoc) => {
     setLocations(prev => [...prev, newLoc]);
+
+    setPositions(prev => ({
+      ...prev,
+      locationPositions: {
+        ...prev.locationPositions,
+        [newLoc.id]: { x: newLoc.x, y: newLoc.y }
+      }
+    }));
+
     triggerConfetti();
   };
 
@@ -103,7 +117,7 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* Streamlined Header */}
+      {/* Header */}
       <HeaderNav
         viewMode={viewMode}
         setViewMode={setViewMode}
@@ -121,22 +135,31 @@ export default function App() {
           setCurrentIndex={setCurrentIndex}
         />
       ) : (
-        /* 100% FULLSCREEN CLEAN MINDMAP CANVAS */
+        /* 100% FULLSCREEN STREAMLINED MINDMAP */
         <MindmapCanvas
           locations={locations}
           objects={objects}
           features={features}
           positions={positions}
           setPositions={setPositions}
-          zoom={zoom}
-          setZoom={setZoom}
           pan={pan}
           setPan={setPan}
           searchTerm={searchTerm}
           onLocationClick={(loc) => openTagModal(loc, null)}
           onObjectClick={(loc, obj) => openTagModal(loc, obj)}
+          activeLocationMode={activeLocationMode}
+          setActiveLocationMode={setActiveLocationMode}
+          onRequestCreateLocation={(pos) => setCreateLocPos(pos)}
         />
       )}
+
+      {/* New Location Creation */}
+      <CreateLocationAtPositionModal
+        isOpen={!!createLocPos}
+        position={createLocPos}
+        onClose={() => setCreateLocPos(null)}
+        onCreateLocation={handleAddLocationAtPosition}
+      />
 
       {/* Location List Settings Modal */}
       <LocationListModal
@@ -144,10 +167,10 @@ export default function App() {
         onClose={() => setIsLocationListOpen(false)}
         locations={locations}
         onSelectLocation={(loc) => openTagModal(loc, null)}
-        onAddLocation={handleAddLocation}
+        onAddLocation={(newLoc) => handleAddLocationAtPosition({ ...newLoc, x: 0, y: 0 })}
       />
 
-      {/* Reusable Dead-Center Popup Tagging Modal */}
+      {/* Reusable Central Quick Tag Modal */}
       <QuickTagModal
         location={tagModalLocation}
         initialObject={initialTagModalObject}
